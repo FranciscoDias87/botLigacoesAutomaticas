@@ -1,21 +1,25 @@
-const contatos = new Map();
-const bloqueados = new Set();
+const supabase = require("@supabase/supabase-js");
 
 function normalizarTelefone(telefone) {
-  if (typeof telefone !== "string" &&
-      typeof telefone !== "number") {
+  if (typeof telefone !== "string" && typeof telefone !== "number") {
     throw new Error("Telefone deve ser uma string ou número.");
   }
   const numero = String(telefone).replace(/\D/g, "");
-  if (!numero){
-    throw new Error("Telefone obrigatório.");
+
+  if (numero.length < 10 || numero.length > 15) {
+    throw new Error("Telefone Inválido.");
   }
   return numero;
 }
 
-function cadastrarContato({ nome, telefone, consentimento }) {
-  if (!nome || !telefone) {
-    throw new Error("Nome e telefone são obrigatórios.");
+async function cadastrarContato({
+  nome,
+  telefone,
+  consentimento,
+  origemConsentimento,
+}) {
+  if (typeof nome != "string" || !nome.trim()) {
+    throw new Error("Nome é obrigatório.");
   }
 
   if (consentimento !== true) {
@@ -24,48 +28,93 @@ function cadastrarContato({ nome, telefone, consentimento }) {
 
   const numero = normalizarTelefone(telefone);
 
-  if (numero.length < 10 || numero.length > 15) {
-    throw new Error("Número de telefone inválido.");
+  const { data: bloqueio, error: erroBloqueio } = await supabase
+    .from("suppression_list")
+    .select("id")
+    .eq("phone", numero)
+    .maybeSingle();
+
+  if (erroBloqueio) {
+    throw new Error(
+      "Não foi possível verificar a lista de bloqueio: " + erroBloqueio.message,
+    );
   }
 
-  if (bloqueados.has(numero)) {
-    throw new Error("Este número está na lista de bloqueio.");
+  if (bloqueio) {
+    throw new Error(
+      "Este número está na lista de bloqueio e não pode ser adicionado.",
+    );
   }
 
-  contatos.set(numero, {
-    nome,
-    telefone: numero,
-    consentimento: true,
-    dataConsentimento: new Date().toISOString(),
-    status: "autorizado",
-  });
+  const { data, erro } = await supabase
+    .from("contacts")
+    .insert({
+      name: nome.trim(),
+      phone: numero,
+      consent_status: "granted",
+      consent_source: origemConsentimento,
+      consent_at: new Date().toISOString(),
+    })
+    .select("id, name, phone, consent_status, consent_source, consent_at")
+    .single();
 
-  return contatos.get(numero);
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("Este número já está cadastrado.");
+    }
+    throw new Error("Não foi possível cadastrar o contato: ");
+  }
+  return data;
 }
 
-function listarContatos() {
-  return [...contatos.values()];
+async function listarContatos() {
+  const { data, error } = await supabase
+  .from("contacts")
+  .select("id, name, phone, consent_status, consent_source, consent_at")
+  .eq("consent_status", "granted")
+  .order("consent_at", { ascending: false });
+
+  if (error) {
+    throw new Error("Não foi possível listar os contatos: " + error.message);
+  }
+
+  return data;
 }
 
-function bloquearContato(telefone) {
-  const numero = normalizarTelefone(telefone);
+async function bloquearContato(telefone) {
 
-  bloqueados.add(numero);
-  contatos.delete(numero);
+    //registar bloqueio permanente
+    const { error: erroBloqueio } = await supabase
+    .from("suppression_list")
+    .upsert({ 
+        phone: numero,
+        reason: "opt-out"
+     },
+     {conflict: "phone"}    
+    );
 
-  return {
-    telefone: numero,
-    bloqueado: true,
-  };
-}
+    if (erroBloqueio){
+        throw new Error("Não foi possível bloquear o contato: ");
+    }
 
-function estaBloqueado(telefone) {
-  return bloqueados.has(normalizarTelefone(telefone));
+    //revoga autorização de contato 
+    const {error: erroContato} = await supabase
+    .from("contacts")
+    .update({ consent_status: "revoked" })
+    .eq("phone", numero);
+
+    if (erroContato){
+        throw new Error("Não foi possível revogar o consentimento do contato: ");
+    }
+
+    return{
+        telefone: numero,
+        bloqueado: true,
+    };
 }
 
 module.exports = {
   cadastrarContato,
   listarContatos,
-  bloquearContato,
-  estaBloqueado,
+  bloquearContato,  
 };
