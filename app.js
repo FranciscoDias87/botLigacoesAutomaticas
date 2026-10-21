@@ -8,7 +8,10 @@ const {
   bloquearContato,
 } = require("./consentService");
 
-const { prepararFilaLigacoes } = require("./callQueueService");
+const {
+  prepararFilaLigacoes,
+  registrarFilaLigacoes,
+} = require("./callQueueService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -111,14 +114,36 @@ app.get("/fila-ligacoes", async (req, res) => {
       modo: "teste",
       ligacoesReaisHabilitadas: false,
       total: fila.length,
-      fila
+      fila,
     });
-
   } catch (error) {
     console.error("Erro ao preparar fila de ligações: ", error.message);
 
     return res.status(500).json({
-      erro: "Não foi possível preparara fila de ligações."
+      erro: "Não foi possível preparara fila de ligações.",
+    });
+  }
+});
+
+//registrar fila de ligações
+app.post("/fila-ligacoes/registrar", async (req, res) => {
+  try {
+    const campanha =
+      typeof req.body?.campanha === "string" && req.body.campanha.trim()
+        ? req.body.campanha.trim()
+        : "Campanha de teste";
+
+    const resultado = await registrarFilaLigacoes(campanha);
+
+    return res.json({
+      mensagem: "Fila registrada no banco de dados.",
+      ...resultado,
+    });
+  } catch (error) {
+    console.error("Erro ao registrar fila:", error.message);
+
+    return res.status(500).json({
+      erro: "Não foi possível registrar a fila.",
     });
   }
 });
