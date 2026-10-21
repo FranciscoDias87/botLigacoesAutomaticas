@@ -8,33 +8,33 @@ async function prepararFilaLigacoes() {
     .eq("consent_status", "granted")
     .order("id", { ascending: true });
 
-    if (error){
-        console.error("Erro ao buscar contatos: ", error.message);
-        throw new Error("Não foi possível preparar a fila de ligações.");
-    }
+  if (error) {
+    console.error("Erro ao buscar contatos: ", error.message);
+    throw new Error("Não foi possível preparar a fila de ligações.");
+  }
 
-    //consultar lista de bloqueio
-    const { data: bloqueados, error: erroBloqueio} = await supabase
+  //consultar lista de bloqueio
+  const { data: bloqueados, error: erroBloqueio } = await supabase
     .from("suppression_list")
     .select("phone");
 
-    if (erroBloqueio){
-        console.error("Erro ao buscar bloqueios", erroBloqueio.message);
-        throw new Error("Não foi possível verificar a lista de bloqueios.");
-    }
+  if (erroBloqueio) {
+    console.error("Erro ao buscar bloqueios", erroBloqueio.message);
+    throw new Error("Não foi possível verificar a lista de bloqueios.");
+  }
 
-    const telefonesBloqueados = new Set(bloqueados.map((item)=> item.phone));
+  const telefonesBloqueados = new Set(bloqueados.map((item) => item.phone));
 
-    //excluir todos os números bloqueador 
-    const fila = contatos
-    .filter((contato)=>!telefonesBloqueados.has(contato.phone))
-    .map((contato)=>({
-        contact_id: contato.id,
-        nome: contato.name,
-        telefone: contato.phone,
-        status: "queued"
+  //excluir todos os números bloqueador
+  const fila = contatos
+    .filter((contato) => !telefonesBloqueados.has(contato.phone))
+    .map((contato) => ({
+      contact_id: contato.id,
+      nome: contato.name,
+      telefone: contato.phone,
+      status: "queued",
     }));
-    return fila;
+  return fila;
 }
 
-module.exports = {prepararFilaLigacoes};
+module.exports = { prepararFilaLigacoes };

@@ -8,6 +8,8 @@ const {
   bloquearContato,
 } = require("./consentService");
 
+const { prepararFilaLigacoes } = require("./callQueueService");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -98,6 +100,26 @@ app.use((error, req, res, next) => {
     return res
       .status(400)
       .json({ erro: "JSON inválido. Confira o corpo da requisição." });
+  }
+});
+
+//preparar fila de ligações
+app.get("/fila-ligacoes", async (req, res) => {
+  try {
+    const fila = await prepararFilaLigacoes();
+    return res.json({
+      modo: "teste",
+      ligacoesReaisHabilitadas: false,
+      total: fila.length,
+      fila
+    });
+
+  } catch (error) {
+    console.error("Erro ao preparar fila de ligações: ", error.message);
+
+    return res.status(500).json({
+      erro: "Não foi possível preparara fila de ligações."
+    });
   }
 });
 
