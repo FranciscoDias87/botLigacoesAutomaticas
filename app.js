@@ -32,19 +32,23 @@ app.get("/health", (req, res) => {
 app.post("/contatos", async (req, res) => {
   try {
     const contato = await cadastrarContato(req.body);
-    return res.status(201).json({ mensagem: "Contato Cadastrado com Sucesso.", contato });
+    return res
+      .status(201)
+      .json({ mensagem: "Contato Cadastrado com Sucesso.", contato });
   } catch (error) {
+    console.error("Erro detalhado ao cadastrar contato: ", error);
     const mensagem = error.message;
 
-    const status = 
-    mensagem.includes("obrigatório") ||
-    mensagem.includes("consentimento") ||
-    mensagem.includes("inválido") ||
-    mensagem.includes("bloqueio")||
-    mensagem.includes("já está cadastrado") ? 400 : 500;
-    
-    return res.status(status).json({erro:mensagem});
+    const status =
+      mensagem.includes("obrigatório") ||
+      mensagem.includes("consentimento") ||
+      mensagem.includes("inválido") ||
+      mensagem.includes("bloqueio") ||
+      mensagem.includes("já está cadastrado")
+        ? 400
+        : 500;
 
+    return res.status(status).json({ erro: mensagem });
   }
 });
 
@@ -56,11 +60,11 @@ app.get("/contatos", async (req, res) => {
     return res.json({
       total: contatos.length,
       contatos,
-    })    
+    });
   } catch (error) {
     console.error("Erro ao listar contatos: ", error.message);
     return res.status(500).json({
-      erro: "Não foi possível consultar os contatos."
+      erro: "Não foi possível consultar os contatos.",
     });
   }
 });
@@ -71,27 +75,31 @@ app.post("/contatos/bloquear", async (req, res) => {
     const resultado = await bloquearContato(req.body.telefone);
 
     return res.json({
-      mensagem:"Numero Bloqueado com Sucesso.", ...resultado
-    })
-
+      mensagem: "Numero Bloqueado com Sucesso.",
+      ...resultado,
+    });
   } catch (error) {
     const mensagem = error.message;
 
-    const status = 
-    mensagem.includes("obrigatório") ||
-    mensagem.includes("inválido") ||
-    mensagem.includes("deve ser") ? 400 : 500;
+    const status =
+      mensagem.includes("obrigatório") ||
+      mensagem.includes("inválido") ||
+      mensagem.includes("deve ser")
+        ? 400
+        : 500;
     console.error("Erro ao bloquear contato: ", error.message);
-    return res.status(status).json({erro:mensagem});   
+    return res.status(status).json({ erro: mensagem });
   }
 });
 
 //tratamento json inválido
-app.use((error, req, res, next)=>{
-  if(error instanceof SyntaxError && error.status === 400){
-    return res.status(400).json({erro:"JSON inválido. Confira o corpo da requisição."});
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400) {
+    return res
+      .status(400)
+      .json({ erro: "JSON inválido. Confira o corpo da requisição." });
   }
-})
+});
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}...`);

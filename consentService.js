@@ -1,4 +1,5 @@
-const supabase = require("@supabase/supabase-js");
+//const supabase = require("@supabase/supabase-js");
+const supabase = require("./supabaseClient");
 
 function normalizarTelefone(telefone) {
   if (typeof telefone !== "string" && typeof telefone !== "number") {
@@ -52,14 +53,14 @@ async function cadastrarContato({
       name: nome.trim(),
       phone: numero,
       consent_status: "granted",
-      consent_source: origemConsentimento,
+      consent_source: origemConsentimento || null,
       consent_at: new Date().toISOString(),
     })
     .select("id, name, phone, consent_status, consent_source, consent_at")
     .single();
 
-  if (error) {
-    if (error.code === "23505") {
+  if (erro) {
+    if (erro.code === "23505") {
       throw new Error("Este número já está cadastrado.");
     }
     throw new Error("Não foi possível cadastrar o contato: ");
